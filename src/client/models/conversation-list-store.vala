@@ -299,18 +299,19 @@ public class ConversationListStore : Gtk.ListStore {
         
         FormattedConversationData? existing_message_data = get_message_data_at_iter(iter);
         
+        // if not present or the preview has changed, replace
         if (existing_message_data == null || !existing_message_data.preview.id.equal_to(last_email.id)) {
             set_row(iter, conversation, last_email);
-        } else if (existing_message_data != null &&
-            existing_message_data.num_emails != conversation.get_count()) {
-            existing_message_data.num_emails = conversation.get_count();
             
-            Gtk.TreePath? path = get_path(iter);
-            if (path != null) {
-                row_changed(path, iter);
-            } else {
-                debug("Cannot refresh conversation: no path for iterator");
-            }
+            return;
+        }
+        
+        // re-sort the conversation, as something has changed
+        Gtk.TreePath? path = get_path(iter);
+        if (path != null) {
+            row_changed(path, iter);
+        } else {
+            debug("Cannot refresh conversation: no path for iterator");
         }
     }
     
