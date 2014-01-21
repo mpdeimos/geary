@@ -20,8 +20,8 @@ public class Configuration {
     public const string COMPOSE_AS_HTML_KEY = "compose-as-html";
     
     public Settings settings { get; private set; }
+    public Settings gnome_interface { get; private set; }
     
-    private Settings gnome_interface;
     private Settings? indicator_datetime;
     
     public int window_width {

@@ -14,6 +14,9 @@ public class ConversationWebView : WebKit.WebView {
     private const string STYLE_NAME = "STYLE";
     private const string PREVENT_HIDE_STYLE = "nohide";
     
+    private const double MM_PER_INCH = 25.4;
+    private const double POINTS_PER_INCH = 72.0;
+    
     // HTML element that contains message DIVs.
     public WebKit.DOM.HTMLDivElement? container { get; private set; default = null; }
     
@@ -34,6 +37,9 @@ public class ConversationWebView : WebKit.WebView {
         config.enable_plugins = false;
         config.enable_developer_extras = Args.inspector;
         settings = config;
+
+        Configuration geary_config = GearyApplication.instance.config;
+        geary_config.gnome_interface.bind("document-font-name", this, "desktop-document-font", SettingsBindFlags.DEFAULT);
         
         // Hook up signals.
         load_finished.connect(on_load_finished);
@@ -148,6 +154,43 @@ public class ConversationWebView : WebKit.WebView {
         set_icon_src("#email_template .attachment.icon", "mail-attachment-symbolic");
         set_icon_src("#email_template .close_show_images", "close-symbolic");
         set_icon_src("#link_warning_template .close_link_warning", "close-symbolic");
+    }
+    
+    private double get_screen_dpi() {
+        Gdk.Screen screen = get_screen();
+        if (screen == null)
+            return 96.0;
+        double dpi = screen.get_resolution();
+        if (dpi != -1)
+            return dpi;
+        
+        double dp = Math.hypot(screen.get_width(), screen.get_height());
+        double di = Math.hypot(screen.get_width_mm(), screen.get_height_mm()) / MM_PER_INCH;
+    
+        return dp / di;
+    }
+    
+    private string _desktop_document_font;
+    public string desktop_document_font {
+        set {
+            Pango.FontDescription font_desc = Pango.FontDescription.from_string(value);
+            double dpi = get_screen_dpi();
+            double size_in_pixels;
+            if (font_desc.get_size_is_absolute()) {
+                size_in_pixels = font_desc.get_size() / (double) Pango.SCALE;
+            } else {
+                size_in_pixels = font_desc.get_size() * (dpi / POINTS_PER_INCH) / Pango.SCALE;
+            }
+            WebKit.WebSettings config = settings;
+            config.default_font_family = font_desc.get_family();
+            config.default_font_size = (int) size_in_pixels;
+            settings = config;
+            _desktop_document_font = value;
+        }
+        
+        get {
+            return _desktop_document_font;
+        }
     }
     
     private void load_user_style() {
