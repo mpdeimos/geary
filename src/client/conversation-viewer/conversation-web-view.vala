@@ -175,15 +175,15 @@ public class ConversationWebView : WebKit.WebView {
         set {
             Pango.FontDescription font_desc = Pango.FontDescription.from_string(value);
             double dpi = get_screen_dpi();
-            double size_in_pixels;
+            double size_in_pts;
             if (font_desc.get_size_is_absolute()) {
-                size_in_pixels = font_desc.get_size() / (double) Pango.SCALE;
+                size_in_pts = font_desc.get_size() * POINTS_PER_INCH / dpi / Pango.SCALE;
             } else {
-                size_in_pixels = font_desc.get_size() * (dpi / POINTS_PER_INCH) / Pango.SCALE;
+                size_in_pts = font_desc.get_size() / (double) Pango.SCALE;
             }
             WebKit.WebSettings config = settings;
             config.default_font_family = font_desc.get_family();
-            config.default_font_size = (int) size_in_pixels;
+            config.default_font_size = (int) size_in_pts;
             settings = config;
             _desktop_document_font = value;
         }

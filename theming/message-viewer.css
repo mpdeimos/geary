@@ -92,7 +92,7 @@ hr {
     border: 1px rgba(0,0,0,1) solid;
     background-color: white;/* recv-normal */
     color: black;
-    font-size: small;
+    font-size: medium;
     box-shadow: 0 3px 11px rgba(0,0,0,1);
     display: block;
     word-wrap: break-word;
