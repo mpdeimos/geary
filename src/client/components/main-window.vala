@@ -226,12 +226,16 @@ public class MainWindow : Gtk.ApplicationWindow {
     
     private void on_folder_selected(Geary.Folder? folder) {
         // disconnect from old folder
-        if (current_folder != null)
+        if (current_folder != null) {
             current_folder.properties.notify.disconnect(update_headerbar);
+            current_folder.display_name_changed.disconnect(update_headerbar);
+        }
         
         // connect to new folder
-        if (folder != null)
+        if (folder != null) {
             folder.properties.notify.connect(update_headerbar);
+            folder.display_name_changed.connect(update_headerbar);
+        }
         
         // swap it in
         current_folder = folder;
