@@ -30,6 +30,7 @@ public class MainWindow : Gtk.ApplicationWindow {
     private MonitoredSpinner spinner = new MonitoredSpinner();
     private Geary.AggregateProgressMonitor progress_monitor = new Geary.AggregateProgressMonitor();
     private Geary.ProgressMonitor? conversation_monitor_progress = null;
+    private Geary.Folder? current_folder = null;
     
     public MainWindow(GearyApplication application) {
         Object(application: application);
@@ -65,10 +66,16 @@ public class MainWindow : Gtk.ApplicationWindow {
         key_release_event.connect(on_key_release_event);
         GearyApplication.instance.controller.notify[GearyController.PROP_CURRENT_CONVERSATION].
             connect(on_conversation_monitor_changed);
+        GearyApplication.instance.controller.folder_selected.connect(on_folder_selected);
         Geary.Engine.instance.account_available.connect(on_account_available);
         Geary.Engine.instance.account_unavailable.connect(on_account_unavailable);
         
         create_layout();
+        
+        // Toolbar.
+        main_toolbar = new MainToolbar();
+        main_toolbar.show_close_button = true;
+        set_titlebar(main_toolbar);
     }
     
     public override void show_all() {
@@ -106,10 +113,6 @@ public class MainWindow : Gtk.ApplicationWindow {
     
     private void create_layout() {
         Gtk.Box main_layout = new Gtk.Box(Gtk.Orientation.VERTICAL, 0);
-        
-        // Toolbar.
-        main_toolbar = new MainToolbar();
-        main_layout.pack_start(main_toolbar, false, false, 0);
         
         // folder list
         Gtk.ScrolledWindow folder_list_scrolled = new Gtk.ScrolledWindow(null, null);
@@ -218,6 +221,39 @@ public class MainWindow : Gtk.ApplicationWindow {
             progress_monitor.remove(Geary.Engine.instance.get_account_instance(account).sending_monitor);
         } catch (Error e) {
             debug("Could not access account progress monitors: %s", e.message);
+        }
+    }
+    
+    private void on_folder_selected(Geary.Folder? folder) {
+        // disconnect from old folder
+        if (current_folder != null)
+            current_folder.properties.notify.disconnect(update_headerbar);
+        
+        // connect to new folder
+        if (folder != null)
+            folder.properties.notify.connect(update_headerbar);
+        
+        // swap it in
+        current_folder = folder;
+        
+        update_headerbar();
+    }
+    
+    private void update_headerbar() {
+        if (current_folder == null) {
+            main_toolbar.title = null;
+            main_toolbar.subtitle = null;
+            
+            return;
+        }
+        
+        main_toolbar.title = current_folder.account.information.nickname;
+        if(current_folder.properties.email_unread > 0) {
+            /// Current folder's name followed by its unread count, i.e. "Inbox (42)"
+            main_toolbar.subtitle = _("%s (%d)").printf(current_folder.get_display_name(),
+                current_folder.properties.email_unread);
+        } else {
+            main_toolbar.subtitle = current_folder.get_display_name();
         }
     }
 }
