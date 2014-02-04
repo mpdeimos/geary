@@ -593,6 +593,7 @@ public class ConversationViewer : Gtk.Box {
         // <div id="$MESSAGE_ID" class="email">
         //     <div class="geary_spacer"></div>
         //     <div class="email_container">
+        //         <div class="email_warning"></div>
         //         <div class="button_bar">
         //             <div class="starred button"><img class="icon" /></div>
         //             <div class="unstarred button"><img class="icon" /></div>
@@ -968,6 +969,18 @@ public class ConversationViewer : Gtk.Box {
         } catch (Error e) {
             warning("Failed to set classes on .email: %s", e.message);
         }
+        
+        try {
+            WebKit.DOM.HTMLElement email_warning = Util.DOM.select(container, ".email_warning");
+            Util.DOM.toggle_class(email_warning.get_class_list(), "show", email.email_flags.is_outbox_sent());
+            if (email.email_flags.is_outbox_sent()) {
+                email_warning.set_inner_html(
+                    _("This message was sent successfully, but could not be saved to %s.").printf(
+                    Geary.SpecialFolderType.SENT.get_display_name()));
+            }
+        } catch (Error e) {
+            warning("Error showing outbox warning bar: %s", e.message);
+        }
     }
 
     private static void on_context_menu(WebKit.DOM.Element clicked_element, WebKit.DOM.Event event,
@@ -1203,8 +1216,7 @@ public class ConversationViewer : Gtk.Box {
             if (message != null && !message.load_remote_images().is_certain()) {
                 Geary.EmailFlags flags = new Geary.EmailFlags();
                 flags.add(Geary.EmailFlags.LOAD_REMOTE_IMAGES);
-                mark_messages(new Geary.Collection.SingleItem<Geary.EmailIdentifier>(
-                    message.id), flags, null);
+                mark_messages(Geary.iterate<Geary.EmailIdentifier>(message.id).to_array_list(), flags, null);
             }
         }
     }
@@ -1418,14 +1430,14 @@ public class ConversationViewer : Gtk.Box {
     private void on_mark_read_message(Geary.Email message) {
         Geary.EmailFlags flags = new Geary.EmailFlags();
         flags.add(Geary.EmailFlags.UNREAD);
-        mark_messages(new Geary.Collection.SingleItem<Geary.EmailIdentifier>(message.id), null, flags);
+        mark_messages(Geary.iterate<Geary.EmailIdentifier>(message.id).to_array_list(), null, flags);
         mark_manual_read(message.id);
     }
 
     private void on_mark_unread_message(Geary.Email message) {
         Geary.EmailFlags flags = new Geary.EmailFlags();
         flags.add(Geary.EmailFlags.UNREAD);
-        mark_messages(new Geary.Collection.SingleItem<Geary.EmailIdentifier>(message.id), flags, null);
+        mark_messages(Geary.iterate<Geary.EmailIdentifier>(message.id).to_array_list(), flags, null);
         mark_manual_read(message.id);
     }
     
@@ -1475,13 +1487,13 @@ public class ConversationViewer : Gtk.Box {
     private void flag_message(Geary.Email email) {
         Geary.EmailFlags flags = new Geary.EmailFlags();
         flags.add(Geary.EmailFlags.FLAGGED);
-        mark_messages(new Geary.Collection.SingleItem<Geary.EmailIdentifier>(email.id), flags, null);
+        mark_messages(Geary.iterate<Geary.EmailIdentifier>(email.id).to_array_list(), flags, null);
     }
 
     private void unflag_message(Geary.Email email) {
         Geary.EmailFlags flags = new Geary.EmailFlags();
         flags.add(Geary.EmailFlags.FLAGGED);
-        mark_messages(new Geary.Collection.SingleItem<Geary.EmailIdentifier>(email.id), null, flags);
+        mark_messages(Geary.iterate<Geary.EmailIdentifier>(email.id).to_array_list(), null, flags);
     }
 
     private void show_attachment_menu(Geary.Email email, Geary.Attachment attachment) {

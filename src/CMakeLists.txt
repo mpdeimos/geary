@@ -100,6 +100,7 @@ engine/imap/command/imap-fetch-command.vala
 engine/imap/command/imap-id-command.vala
 engine/imap/command/imap-idle-command.vala
 engine/imap/command/imap-list-command.vala
+engine/imap/command/imap-list-return-parameter.vala
 engine/imap/command/imap-login-command.vala
 engine/imap/command/imap-logout-command.vala
 engine/imap/command/imap-message-set.vala
@@ -186,7 +187,6 @@ engine/imap-engine/imap-engine-generic-drafts-folder.vala
 engine/imap-engine/imap-engine-generic-folder.vala
 engine/imap-engine/imap-engine-generic-sent-mail-folder.vala
 engine/imap-engine/imap-engine-generic-trash-folder.vala
-engine/imap-engine/imap-engine-receive-replay-operation.vala
 engine/imap-engine/imap-engine-replay-operation.vala
 engine/imap-engine/imap-engine-replay-queue.vala
 engine/imap-engine/imap-engine-send-replay-operation.vala
@@ -218,6 +218,7 @@ engine/memory/memory-byte-buffer.vala
 engine/memory/memory-empty-buffer.vala
 engine/memory/memory-file-buffer.vala
 engine/memory/memory-growable-buffer.vala
+engine/memory/memory-offset-buffer.vala
 engine/memory/memory-string-buffer.vala
 engine/memory/memory-unowned-byte-array-buffer.vala
 engine/memory/memory-unowned-bytes-buffer.vala
@@ -283,7 +284,6 @@ engine/util/util-numeric.vala
 engine/util/util-object.vala
 engine/util/util-reference-semantics.vala
 engine/util/util-scheduler.vala
-engine/util/util-single-item.vala
 engine/util/util-stream.vala
 engine/util/util-string.vala
 engine/util/util-synchronization.vala

@@ -4,12 +4,12 @@
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
-private class Geary.ImapEngine.ReplayDisconnect : Geary.ImapEngine.ReceiveReplayOperation {
+private class Geary.ImapEngine.ReplayDisconnect : Geary.ImapEngine.ReplayOperation {
     public GenericFolder owner;
     public Imap.ClientSession.DisconnectReason reason;
     
     public ReplayDisconnect(GenericFolder owner, Imap.ClientSession.DisconnectReason reason) {
-        base ("Disconnect");
+        base ("Disconnect", Scope.LOCAL_ONLY);
         
         this.owner = owner;
         this.reason = reason;
@@ -34,11 +34,20 @@ private class Geary.ImapEngine.ReplayDisconnect : Geary.ImapEngine.ReceiveReplay
         // that means a ReplayOperation is scheduling a ReplayOperation, which isn't something
         // we want to encourage, so use the Idle queue to schedule close_internal_async
         Idle.add(() => {
-            owner.close_internal_async.begin(Geary.Folder.CloseReason.LOCAL_CLOSE, remote_reason, null);
+            owner.close_internal_async.begin(Geary.Folder.CloseReason.LOCAL_CLOSE, remote_reason,
+                false, null);
             
             return false;
         });
         
+        return ReplayOperation.Status.COMPLETED;
+    }
+    
+    public override async void backout_local_async() throws Error {
+    }
+    
+    public override async ReplayOperation.Status replay_remote_async() throws Error {
+        // shot not be called
         return ReplayOperation.Status.COMPLETED;
     }
     

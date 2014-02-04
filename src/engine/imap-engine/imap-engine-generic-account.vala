@@ -209,7 +209,8 @@ private abstract class Geary.ImapEngine.GenericAccount : Geary.AbstractAccount {
     }
     
     private GenericFolder build_folder(ImapDB.Folder local_folder) {
-        return Geary.Collection.get_first(build_folders(new Collection.SingleItem<ImapDB.Folder>(local_folder)));
+        return Geary.Collection.get_first(build_folders(
+            Geary.iterate<ImapDB.Folder>(local_folder).to_array_list()));
     }
 
     private Gee.Collection<GenericFolder> build_folders(Gee.Collection<ImapDB.Folder> local_folders) {
@@ -528,7 +529,10 @@ private abstract class Geary.ImapEngine.GenericAccount : Geary.AbstractAccount {
         Cancellable? cancellable = null) throws Error {
         check_open();
         
-        Geary.RFC822.Message rfc822 = new Geary.RFC822.Message.from_composed_email(composed);
+        // TODO: we should probably not use someone else's FQDN in something
+        // that's supposed to be globally unique...
+        Geary.RFC822.Message rfc822 = new Geary.RFC822.Message.from_composed_email(
+            composed, GMime.utils_generate_message_id(information.get_smtp_endpoint().host_specifier));
         
         // don't use create_email_async() as that requires the folder be open to use
         yield local.outbox.enqueue_email_async(rfc822, cancellable);
