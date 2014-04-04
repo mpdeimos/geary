@@ -1,10 +1,17 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
 namespace Geary.Collection {
+
+// A substitute for ArrayList<G>.wrap() for compatibility with older versions of Gee.
+public Gee.ArrayList<G> array_list_wrap<G>(G[] a, owned Gee.EqualDataFunc<G>? equal_func = null) {
+    Gee.ArrayList<G> list = new Gee.ArrayList<G>(equal_func);
+    add_all_array<G>(list, a);
+    return list;
+}
 
 public Gee.ArrayList<G> to_array_list<G>(Gee.Collection<G> c) {
     Gee.ArrayList<G> list = new Gee.ArrayList<G>();

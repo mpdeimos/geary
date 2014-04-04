@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -9,6 +9,10 @@
  */
 public abstract class Geary.AbstractLocalFolder : Geary.AbstractFolder {
     private int open_count = 0;
+    
+    public AbstractLocalFolder() {
+        opening_monitor = new Geary.SimpleProgressMonitor(Geary.ProgressType.ACTIVITY);
+    }
     
     public override Geary.Folder.OpenState get_open_state() {
         return open_count > 0 ? Geary.Folder.OpenState.LOCAL : Geary.Folder.OpenState.CLOSED;

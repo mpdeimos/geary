@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -12,6 +12,17 @@
  */
 
 public class Geary.Imap.MailboxAttributes : Geary.Imap.Flags {
+    /**
+     * True if the mailbox should not be accessed via SELECT, EXAMINE, or STATUS, i.e. is a
+     * "no-select" mailbox.
+     *
+     * See [[http://tools.ietf.org/html/rfc3501#section-7.2.2]] and
+     * [[http://tools.ietf.org/html/rfc5258#section-3]]
+     */
+    public bool is_no_select { get {
+        return contains(MailboxAttribute.NO_SELECT) || contains(MailboxAttribute.NONEXISTENT);
+    } }
+    
     public MailboxAttributes(Gee.Collection<MailboxAttribute> attrs) {
         base (attrs);
     }

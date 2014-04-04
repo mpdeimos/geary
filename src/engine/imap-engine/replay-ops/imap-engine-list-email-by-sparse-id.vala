@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -7,7 +7,7 @@
 private class Geary.ImapEngine.ListEmailBySparseID : Geary.ImapEngine.AbstractListEmail {
     private Gee.HashSet<ImapDB.EmailIdentifier> ids = new Gee.HashSet<ImapDB.EmailIdentifier>();
     
-    public ListEmailBySparseID(GenericFolder owner, Gee.Collection<ImapDB.EmailIdentifier> ids,
+    public ListEmailBySparseID(MinimalFolder owner, Gee.Collection<ImapDB.EmailIdentifier> ids,
         Geary.Email.Field required_fields, Folder.ListFlags flags, Gee.List<Geary.Email>? accumulator,
         EmailCallback cb, Cancellable? cancellable) {
         base ("ListEmailBySparseID", owner, required_fields, flags, accumulator, cb, cancellable);

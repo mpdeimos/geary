@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -7,7 +7,7 @@
 private class Geary.ImapEngine.FetchEmail : Geary.ImapEngine.SendReplayOperation {
     public Email? email = null;
     
-    private GenericFolder engine;
+    private MinimalFolder engine;
     private ImapDB.EmailIdentifier id;
     private Email.Field required_fields;
     private Email.Field remaining_fields;
@@ -16,7 +16,7 @@ private class Geary.ImapEngine.FetchEmail : Geary.ImapEngine.SendReplayOperation
     private Imap.UID? uid = null;
     private bool remote_removed = false;
     
-    public FetchEmail(GenericFolder engine, ImapDB.EmailIdentifier id, Email.Field required_fields,
+    public FetchEmail(MinimalFolder engine, ImapDB.EmailIdentifier id, Email.Field required_fields,
         Folder.ListFlags flags, Cancellable? cancellable) {
         base ("FetchEmail");
         

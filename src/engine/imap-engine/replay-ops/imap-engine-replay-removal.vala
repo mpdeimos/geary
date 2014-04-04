@@ -1,16 +1,16 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
 private class Geary.ImapEngine.ReplayRemoval : Geary.ImapEngine.ReplayOperation {
-    public GenericFolder owner;
+    public MinimalFolder owner;
     public int remote_count;
     public Imap.SequenceNumber position;
     
-    public ReplayRemoval(GenericFolder owner, int remote_count, Imap.SequenceNumber position) {
-        base ("Removal", Scope.LOCAL_ONLY);
+    public ReplayRemoval(MinimalFolder owner, int remote_count, Imap.SequenceNumber position) {
+        base ("Removal", Scope.LOCAL_AND_REMOTE);
         
         this.owner = owner;
         this.remote_count = remote_count;
@@ -31,16 +31,17 @@ private class Geary.ImapEngine.ReplayRemoval : Geary.ImapEngine.ReplayOperation 
     }
     
     public override async ReplayOperation.Status replay_local_async() throws Error {
-        yield owner.do_replay_removed_message(remote_count, position);
-        
-        return ReplayOperation.Status.COMPLETED;
+        // Although technically a local-only operation, must treat as remote to ensure it's
+        // processed in-order with ReplayAppend operations
+        return ReplayOperation.Status.CONTINUE;
     }
     
     public override async void backout_local_async() throws Error {
     }
     
     public override async ReplayOperation.Status replay_remote_async() throws Error {
-        // should not be called
+        yield owner.do_replay_removed_message(remote_count, position);
+        
         return ReplayOperation.Status.COMPLETED;
     }
     

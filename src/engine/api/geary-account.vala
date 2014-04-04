@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -278,6 +278,15 @@ public interface Geary.Account : BaseObject {
      * null is returned.
      */
     public abstract Geary.Folder? get_special_folder(Geary.SpecialFolderType special) throws Error;
+    
+    /**
+     * Returns the Folder object with the given special folder type.  The folder will be
+     * created on the server if it doesn't already exist.  An error will be thrown if the
+     * folder doesn't exist and can't be created.  The only valid special folder types that
+     * can be required are: DRAFTS, SENT, SPAM, and TRASH.
+     */
+    public abstract async Geary.Folder get_required_special_folder_async(Geary.SpecialFolderType special,
+        Cancellable? cancellable = null) throws Error;
     
     /**
      * Submits a ComposedEmail for delivery.  Messages may be scheduled for later delivery or immediately

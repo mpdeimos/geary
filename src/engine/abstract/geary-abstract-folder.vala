@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -12,6 +12,8 @@ public abstract class Geary.AbstractFolder : BaseObject, Geary.Folder {
     public abstract Geary.FolderPath path { get; }
     
     public abstract Geary.SpecialFolderType special_folder_type { get; }
+    
+    public Geary.ProgressMonitor opening_monitor { get; protected set; }
     
     /*
      * notify_* methods for AbstractFolder are marked internal because the SendReplayOperations

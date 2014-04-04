@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  * Portions copyright (C) 2000-2013 Jeffrey Stedfast
  *
  * This software is licensed under the GNU Lesser General Public License
@@ -232,7 +232,7 @@ public string quote_email_for_forward(Geary.Email email, bool html_format) {
 }
 
 private string quote_body(Geary.Email email, bool use_quotes, bool html_format) {
-    string body_text = "";
+    string? body_text = "";
     
     try {
         body_text = email.get_message().get_body(html_format);
@@ -241,7 +241,7 @@ private string quote_body(Geary.Email email, bool use_quotes, bool html_format) 
     }
     
     // Wrap the whole thing in a blockquote.
-    if (use_quotes)
+    if (use_quotes && !String.is_empty(body_text))
         body_text = "<blockquote type=\"cite\">%s</blockquote>".printf(body_text);
     
     return body_text;
@@ -320,12 +320,19 @@ public GMime.ContentEncoding get_best_content_encoding(GMime.Stream stream,
     return encoding;
 }
 
-public string get_attachment_filename(GMime.Part part) {
+public string get_clean_attachment_filename(GMime.Part part) {
     string? filename = part.get_filename();
     if (String.is_empty(filename)) {
         /// Placeholder filename for attachments with no filename.
         filename = _("none");
     }
+    
+    try {
+        filename = invalid_filename_character_re.replace_literal(filename, filename.length, 0, "_");
+    } catch (RegexError e) {
+        debug("Error sanitizing attachment filename: %s", e.message);
+    }
+    
     return filename;
 }
 

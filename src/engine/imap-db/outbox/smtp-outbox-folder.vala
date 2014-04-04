@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -70,6 +70,8 @@ private class Geary.SmtpOutboxFolder : Geary.AbstractLocalFolder, Geary.FolderSu
     // Requires the Database from the get-go because it runs a background task that access it
     // whether open or not
     public SmtpOutboxFolder(ImapDB.Database db, Account account, Geary.ProgressMonitor sending_monitor) {
+        base();
+        
         this.db = db;
         _account = account;
         this.sending_monitor = sending_monitor;
@@ -545,9 +547,11 @@ private class Geary.SmtpOutboxFolder : Geary.AbstractLocalFolder, Geary.FolderSu
         int final_count = 0;
         yield db.exec_transaction_async(Db.TransactionType.WR, (cx) => {
             foreach (Geary.EmailIdentifier id in email_ids) {
+                // ignore anything not belonging to the outbox, but also don't report it as removed
+                // either
                 SmtpOutboxEmailIdentifier? outbox_id = id as SmtpOutboxEmailIdentifier;
                 if (outbox_id == null)
-                    throw new EngineError.BAD_PARAMETERS("%s is not outbox EmailIdentifier", id.to_string());
+                    continue;
                 
                 // Even though we discard the new value here, this check must
                 // occur before any insert/delete on the table, to ensure we
@@ -636,10 +640,10 @@ private class Geary.SmtpOutboxFolder : Geary.AbstractLocalFolder, Geary.FolderSu
     
     private async void save_sent_mail_async(Geary.RFC822.Message rfc822, Cancellable? cancellable)
         throws Error {
-        Geary.Folder? sent_mail = _account.get_special_folder(Geary.SpecialFolderType.SENT);
-        Geary.FolderSupport.Create? create = sent_mail as Geary.FolderSupport.Create;
+        Geary.FolderSupport.Create? create = (yield _account.get_required_special_folder_async(
+            Geary.SpecialFolderType.SENT, cancellable)) as Geary.FolderSupport.Create;
         if (create == null)
-            throw new EngineError.NOT_FOUND("Save sent mail enabled, but no sent mail folder");
+            throw new EngineError.NOT_FOUND("Save sent mail enabled, but no writable sent mail folder");
         
         bool open = false;
         try {

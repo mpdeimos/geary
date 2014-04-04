@@ -1,15 +1,15 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
 private class Geary.ImapEngine.ReplayAppend : Geary.ImapEngine.ReplayOperation {
-    public GenericFolder owner;
+    public MinimalFolder owner;
     public int remote_count;
     public Gee.List<Imap.SequenceNumber> positions;
     
-    public ReplayAppend(GenericFolder owner, int remote_count, Gee.List<Imap.SequenceNumber> positions) {
+    public ReplayAppend(MinimalFolder owner, int remote_count, Gee.List<Imap.SequenceNumber> positions) {
         base ("Append", Scope.REMOTE_ONLY);
         
         this.owner = owner;

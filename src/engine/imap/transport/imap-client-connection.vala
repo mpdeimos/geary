@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -31,6 +31,9 @@ public class Geary.Imap.ClientConnection : BaseObject {
     public const uint DEFAULT_COMMAND_TIMEOUT_SEC = 15;
     
     private const int FLUSH_TIMEOUT_MSEC = 10;
+    
+    // At least one server out there requires this to be in caps
+    private const string IDLE_DONE = "DONE";
     
     private enum State {
         UNCONNECTED,
@@ -487,8 +490,7 @@ public class Geary.Imap.ClientConnection : BaseObject {
         yield close_channels_async(cancellable);
         
         // wrap connection with TLS connection
-        TlsClientConnection tls_cx = yield endpoint.starttls_handshake_async(cx,
-            cx.get_remote_address(), cancellable);
+        TlsClientConnection tls_cx = yield endpoint.starttls_handshake_async(cx, cancellable);
         
         ios = tls_cx;
         
@@ -951,8 +953,8 @@ public class Geary.Imap.ClientConnection : BaseObject {
         }
         
         try {
-            Logging.debug(Logging.Flag.NETWORK, "[%s S] %s", to_string(), "done");
-            ser.push_unquoted_string("done");
+            Logging.debug(Logging.Flag.NETWORK, "[%s S] %s", to_string(), IDLE_DONE);
+            ser.push_unquoted_string(IDLE_DONE);
             ser.push_eol();
         } catch (Error err) {
             debug("[%s] Unable to close IDLE: %s", to_string(), err.message);

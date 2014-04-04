@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -152,12 +152,28 @@ private class Geary.Imap.Account : BaseObject {
         return path_to_mailbox.has_key(path);
     }
     
-    public async Imap.Folder fetch_folder_async(FolderPath path, Cancellable? cancellable)
-        throws Error {
+    public async void create_folder_async(FolderPath path, Cancellable? cancellable) throws Error {
         check_open();
+        
+        StatusResponse response = yield send_command_async(new CreateCommand(
+            new MailboxSpecifier.from_folder_path(path, null)), null, null, cancellable);
+        
+        if (response.status != Status.OK) {
+            throw new ImapError.SERVER_ERROR("Server reports error creating path %s: %s", path.to_string(),
+                response.to_string());
+        }
+    }
+    
+    public async Imap.Folder fetch_folder_async(FolderPath path, out bool created,
+        Cancellable? cancellable) throws Error {
+        check_open();
+        
+        created = false;
         
         if (folders.has_key(path))
             return folders.get(path);
+        
+        created = true;
         
         // if not in map, use list_children_async to add it (if it exists)
         if (!path_to_mailbox.has_key(path)) {
@@ -170,8 +186,8 @@ private class Geary.Imap.Account : BaseObject {
             throw_not_found(path);
         
         Imap.Folder folder;
-        if (!mailbox_info.attrs.contains(MailboxAttribute.NO_SELECT)) {
-            StatusData status = yield fetch_status_async(path, cancellable);
+        if (!mailbox_info.attrs.is_no_select) {
+            StatusData status = yield fetch_status_async(path, StatusDataType.all(), cancellable);
             
             folder = new Imap.Folder(session_mgr, status, mailbox_info);
         } else {
@@ -183,13 +199,36 @@ private class Geary.Imap.Account : BaseObject {
         return folder;
     }
     
-    private async StatusData fetch_status_async(FolderPath path, Cancellable? cancellable)
+    internal void folders_removed(Gee.Collection<FolderPath> paths) {
+        foreach (FolderPath path in paths) {
+            if (path_to_mailbox.has_key(path))
+                path_to_mailbox.unset(path);
+            if (folders.has_key(path))
+                folders.unset(path);
+        }
+    }
+    
+    public async int fetch_unseen_count_async(FolderPath path, Cancellable? cancellable)
         throws Error {
+        check_open();
+        
+        MailboxInformation? mailbox_info = path_to_mailbox.get(path);
+        if (mailbox_info == null)
+            throw_not_found(path);
+        if (mailbox_info.attrs.is_no_select)
+            throw new EngineError.UNSUPPORTED("Can't fetch unseen count for unselectable folder %s", path);
+        
+        StatusData data = yield fetch_status_async(path, { StatusDataType.UNSEEN }, cancellable);
+        return data.unseen;
+    }
+    
+    private async StatusData fetch_status_async(FolderPath path, StatusDataType[] status_types,
+        Cancellable? cancellable) throws Error {
         check_open();
         
         Gee.List<StatusData> status_results = new Gee.ArrayList<StatusData>();
         StatusResponse response = yield send_command_async(
-            new StatusCommand(new MailboxSpecifier.from_folder_path(path, null), StatusDataType.all()),
+            new StatusCommand(new MailboxSpecifier.from_folder_path(path, null), status_types),
             null, status_results, cancellable);
         
         throw_fetch_error(response, path, status_results.size);
@@ -228,7 +267,7 @@ private class Geary.Imap.Account : BaseObject {
             StatusCommand, MailboxSpecifier>();
         foreach (MailboxInformation mailbox_info in child_info) {
             // if new mailbox is unselectable, don't bother doing a STATUS command
-            if (mailbox_info.attrs.contains(MailboxAttribute.NO_SELECT)) {
+            if (mailbox_info.attrs.is_no_select) {
                 Imap.Folder folder = new Imap.Folder.unselectable(session_mgr, mailbox_info);
                 folders.set(folder.path, folder);
                 child_folders.add(folder);

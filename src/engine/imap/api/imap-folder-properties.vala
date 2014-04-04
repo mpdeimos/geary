@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -67,7 +67,7 @@ public class Geary.Imap.FolderProperties : Geary.FolderProperties {
         // give the base class a zero email_unread, as the notion of "unknown" doesn't exist in
         // its contract
         base (messages, email_unread, Trillian.UNKNOWN, Trillian.UNKNOWN, Trillian.UNKNOWN, false,
-            false);
+            false, false);
         
         select_examine_messages = messages;
         status_messages = -1;
@@ -82,7 +82,7 @@ public class Geary.Imap.FolderProperties : Geary.FolderProperties {
     
     public FolderProperties.status(StatusData status, MailboxAttributes attrs) {
         base (status.messages, status.unseen, Trillian.UNKNOWN, Trillian.UNKNOWN, Trillian.UNKNOWN,
-            false, false);
+            false, false, false);
         
         select_examine_messages = -1;
         status_messages = status.messages;
@@ -166,7 +166,7 @@ public class Geary.Imap.FolderProperties : Geary.FolderProperties {
                 has_children = Trillian.FALSE;
         }
         
-        is_openable = Trillian.from_boolean(!attrs.contains(MailboxAttribute.NO_SELECT));
+        is_openable = Trillian.from_boolean(!attrs.is_no_select);
     }
     
     /**
@@ -212,6 +212,10 @@ public class Geary.Imap.FolderProperties : Geary.FolderProperties {
         
         // update base class value (which clients see)
         email_unread = count;
+    }
+    
+    public void set_from_session_capabilities(Capabilities capabilities) {
+        create_never_returns_id = !capabilities.supports_uidplus();
     }
 }
 

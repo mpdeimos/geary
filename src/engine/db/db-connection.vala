@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -232,7 +232,11 @@ public class Geary.Db.Connection : Geary.Db.Context {
     }
     
     /**
-     * See set_user_version_number().
+     * Returns the user_version number maintained by SQLite.
+     *
+     * A new database has a user version number of zero.
+     *
+     * @see set_user_version_number().
      */
     public int get_user_version_number() throws Error {
         return get_pragma_int(PRAGMA_USER_VERSION);

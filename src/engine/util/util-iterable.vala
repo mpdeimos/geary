@@ -1,4 +1,4 @@
-/* Copyright 2013 Yorba Foundation
+/* Copyright 2013-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -26,6 +26,13 @@ namespace Geary {
         } while((arg = args.arg()) != null);
         
         return Geary.traverse<G>(list);
+    }
+    
+    /**
+     * Take an array of items and return a Geary.Iterable for convenience.
+     */
+    public Geary.Iterable<G> iterate_array<G>(G[] a) {
+        return Geary.traverse<G>(Geary.Collection.array_list_wrap<G>(a));
     }
 }
 

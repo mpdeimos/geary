@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -103,6 +103,9 @@ public abstract class Geary.AbstractAccount : BaseObject, Geary.Account {
         return Geary.traverse<Geary.Folder>(list_folders())
             .first_matching(f => f.special_folder_type == special);
     }
+    
+    public abstract async Geary.Folder get_required_special_folder_async(Geary.SpecialFolderType special,
+        Cancellable? cancellable) throws Error;
     
     public abstract async void send_email_async(Geary.ComposedEmail composed, Cancellable? cancellable = null)
         throws Error;

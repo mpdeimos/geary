@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -7,6 +7,8 @@
 // Primary controller object for Geary.
 public class GearyController : Geary.BaseObject {
     // Named actions.
+    //
+    // NOTE: Some actions with accelerators need to also be added to ui/accelerators.ui
     public const string ACTION_HELP = "GearyHelp";
     public const string ACTION_ABOUT = "GearyAbout";
     public const string ACTION_DONATE = "GearyDonate";
@@ -1229,10 +1231,21 @@ public class GearyController : Geary.BaseObject {
         
         if (unavailable != null) {
             foreach (Geary.Folder folder in unavailable) {
+                main_window.folder_list.remove_folder(folder);
+                if (folder.account == current_account) {
+                    if (main_window.main_toolbar.copy_folder_menu.has_folder(folder))
+                        main_window.main_toolbar.copy_folder_menu.remove_folder(folder);
+                    if (main_window.main_toolbar.move_folder_menu.has_folder(folder))
+                        main_window.main_toolbar.move_folder_menu.remove_folder(folder);
+                }
+                
                 if (folder.special_folder_type == Geary.SpecialFolderType.INBOX &&
                     inboxes.has_key(folder.account)) {
+                    inboxes.unset(folder.account);
                     new_messages_monitor.remove_folder(folder);
                 }
+                
+                folder.special_folder_type_changed.disconnect(on_special_folder_type_changed);
             }
         }
     }
@@ -1336,9 +1349,12 @@ public class GearyController : Geary.BaseObject {
     }
     
     private void on_shift_key(bool pressed) {
-        main_window.main_toolbar.update_trash_buttons(
-            (!pressed && current_folder_supports_trash()) || !(current_folder is Geary.FolderSupport.Remove),
-            current_account.can_support_archive);
+        if (main_window != null && main_window.main_toolbar != null
+            && current_account != null && current_folder != null) {
+            main_window.main_toolbar.update_trash_buttons(
+                (!pressed && current_folder_supports_trash()) || !(current_folder is Geary.FolderSupport.Remove),
+                current_account.can_support_archive);
+        }
     }
     
     // this signal does not necessarily indicate that the application previously didn't have
@@ -1360,12 +1376,13 @@ public class GearyController : Geary.BaseObject {
     }
     
     private Gee.ArrayList<Geary.EmailIdentifier> get_conversation_email_ids(
-        Geary.App.Conversation conversation, bool preview_message_only,
+        Geary.App.Conversation conversation, bool latest_only,
         Gee.ArrayList<Geary.EmailIdentifier> add_to) {
-        if (preview_message_only) {
-            Geary.Email? preview = conversation.get_latest_email(Geary.App.Conversation.Location.ANYWHERE);
-            if (preview != null)
-                add_to.add(preview.id);
+        if (latest_only) {
+            Geary.Email? latest = conversation.get_latest_email(
+                Geary.App.Conversation.Location.IN_FOLDER_OUT_OF_FOLDER);
+            if (latest != null)
+                add_to.add(latest.id);
         } else {
             add_to.add_all(conversation.get_email_ids());
         }
@@ -1374,20 +1391,20 @@ public class GearyController : Geary.BaseObject {
     }
     
     private Gee.Collection<Geary.EmailIdentifier> get_conversation_collection_email_ids(
-        Gee.Collection<Geary.App.Conversation> conversations, bool preview_message_only = false) {
+        Gee.Collection<Geary.App.Conversation> conversations, bool latest_only = false) {
         Gee.ArrayList<Geary.EmailIdentifier> ret = new Gee.ArrayList<Geary.EmailIdentifier>();
         
         foreach(Geary.App.Conversation c in conversations)
-            get_conversation_email_ids(c, preview_message_only, ret);
+            get_conversation_email_ids(c, latest_only, ret);
         
         return ret;
     }
     
     private Gee.ArrayList<Geary.EmailIdentifier> get_selected_email_ids(
-        bool preview_messages_only) {
+        bool latest_only) {
         Gee.ArrayList<Geary.EmailIdentifier> ids = new Gee.ArrayList<Geary.EmailIdentifier>();
         foreach (Geary.App.Conversation conversation in selected_conversations)
-            get_conversation_email_ids(conversation, preview_messages_only, ids);
+            get_conversation_email_ids(conversation, latest_only, ids);
         return ids;
     }
     
@@ -1407,7 +1424,13 @@ public class GearyController : Geary.BaseObject {
         foreach (Geary.App.Conversation conversation in selected_conversations) {
             if (conversation.is_unread())
                 unread_selected = true;
-            if (conversation.has_any_read_message())
+            
+            // Only check the messages that "Mark as Unread" would mark, so we
+            // don't add the menu option and have it not do anything.
+            Geary.Email? latest = conversation.get_latest_email(
+                Geary.App.Conversation.Location.IN_FOLDER_OUT_OF_FOLDER);
+            if (latest != null && latest.email_flags != null
+                && !latest.email_flags.contains(Geary.EmailFlags.UNREAD))
                 read_selected = true;
 
             if (conversation.is_flagged()) {
@@ -1422,15 +1445,7 @@ public class GearyController : Geary.BaseObject {
         actions.get_action(ACTION_MARK_AS_STARRED).set_visible(unstarred_selected);
         actions.get_action(ACTION_MARK_AS_UNSTARRED).set_visible(starred_selected);
         
-        Geary.Folder? spam_folder = null;
-        try {
-            spam_folder = current_account.get_special_folder(Geary.SpecialFolderType.SPAM);
-        } catch (Error e) {
-            debug("Could not locate special spam folder: %s", e.message);
-        }
-        
-        if (spam_folder != null &&
-            current_folder.special_folder_type != Geary.SpecialFolderType.DRAFTS &&
+        if (current_folder.special_folder_type != Geary.SpecialFolderType.DRAFTS &&
             current_folder.special_folder_type != Geary.SpecialFolderType.OUTBOX) {
             if (current_folder.special_folder_type == Geary.SpecialFolderType.SPAM) {
                 // We're in the spam folder.
@@ -1442,7 +1457,7 @@ public class GearyController : Geary.BaseObject {
                 actions.get_action(ACTION_MARK_AS_SPAM).label = MARK_AS_SPAM_LABEL;
             }
         } else {
-            // No Spam folder, or we're in Drafts/Outbox, so gray-out the option.
+            // We're in Drafts/Outbox, so gray-out the option.
             actions.get_action(ACTION_MARK_AS_SPAM).sensitive = false;
             actions.get_action(ACTION_MARK_AS_SPAM).label = MARK_AS_SPAM_LABEL;
         }
@@ -1483,8 +1498,8 @@ public class GearyController : Geary.BaseObject {
     
     private void on_mark_conversations(Gee.Collection<Geary.App.Conversation> conversations,
         Geary.EmailFlags? flags_to_add, Geary.EmailFlags? flags_to_remove,
-        bool only_mark_preview = false) {
-        mark_email(get_conversation_collection_email_ids(conversations, only_mark_preview),
+        bool latest_only = false) {
+        mark_email(get_conversation_collection_email_ids(conversations, latest_only),
             flags_to_add, flags_to_remove);
     }
     
@@ -1508,7 +1523,7 @@ public class GearyController : Geary.BaseObject {
         Geary.EmailFlags flags = new Geary.EmailFlags();
         flags.add(Geary.EmailFlags.UNREAD);
         
-        Gee.ArrayList<Geary.EmailIdentifier> ids = get_selected_email_ids(false);
+        Gee.ArrayList<Geary.EmailIdentifier> ids = get_selected_email_ids(true);
         mark_email(ids, flags, null);
         
         foreach (Geary.EmailIdentifier id in ids)
@@ -1527,12 +1542,13 @@ public class GearyController : Geary.BaseObject {
         mark_email(get_selected_email_ids(false), null, flags);
     }
     
-    private void on_mark_as_spam() {
+    private async void mark_as_spam_async(Cancellable? cancellable) {
         Geary.Folder? destination_folder = null;
         if (current_folder.special_folder_type != Geary.SpecialFolderType.SPAM) {
             // Move to spam folder.
             try {
-                destination_folder = current_account.get_special_folder(Geary.SpecialFolderType.SPAM);
+                destination_folder = yield current_account.get_required_special_folder_async(
+                    Geary.SpecialFolderType.SPAM, cancellable);
             } catch (Error e) {
                 debug("Error getting spam folder: %s", e.message);
             }
@@ -1547,6 +1563,10 @@ public class GearyController : Geary.BaseObject {
         
         if (destination_folder != null)
             on_move_conversation(destination_folder);
+    }
+    
+    private void on_mark_as_spam() {
+        mark_as_spam_async.begin(null);
     }
     
     private void copy_email(Gee.Collection<Geary.EmailIdentifier> ids,
@@ -1898,26 +1918,20 @@ public class GearyController : Geary.BaseObject {
             on_archive_or_delete_selection_finished);
     }
     
-    private bool current_folder_supports_trash(out Geary.FolderSupport.Move? move = null,
-        out Geary.FolderPath? trash_path = null) {
-        try {
-            if (current_folder != null && current_folder.special_folder_type != Geary.SpecialFolderType.TRASH
-                && !current_folder.properties.is_local_only && current_account != null) {
-                Geary.FolderSupport.Move? supports_move = current_folder as Geary.FolderSupport.Move;
-                Geary.Folder? trash_folder = current_account.get_special_folder(Geary.SpecialFolderType.TRASH);
-                if (supports_move != null && trash_folder != null) {
-                    move = supports_move;
-                    trash_path = trash_folder.path;
-                    return true;
-                }
-            }
-        } catch (Error e) {
-            debug("Error finding trash folder: %s", e.message);
-        }
+    private bool current_folder_supports_trash() {
+        return (current_folder != null && current_folder.special_folder_type != Geary.SpecialFolderType.TRASH
+            && !current_folder.properties.is_local_only && current_account != null
+            && (current_folder as Geary.FolderSupport.Move) != null);
+    }
+    
+    public bool confirm_delete(int num_messages) {
+        main_window.present();
+        AlertDialog dialog = new ConfirmationDialog(main_window, ngettext(
+            "Do you want to permanently delete this message?",
+            "Do you want to permanently delete these messages?", num_messages),
+            null, _("Delete"));
         
-        move = null;
-        trash_path = null;
-        return false;
+        return (dialog.run() == Gtk.ResponseType.OK);
     }
     
     private async void archive_or_delete_selection_async(bool archive, bool trash,
@@ -1949,23 +1963,32 @@ public class GearyController : Geary.BaseObject {
         if (trash) {
             debug("Trashing selected messages");
             
-            Geary.FolderPath? trash_path;
-            Geary.FolderSupport.Move? supports_move;
-            if (!current_folder_supports_trash(out supports_move, out trash_path))
-                debug("Folder %s doesn't support move or account %s doesn't have a trash folder",
-                    current_folder.to_string(), current_account.to_string());
-            else
-                yield supports_move.move_email_async(ids, trash_path, cancellable);
+            if (current_folder_supports_trash()) {
+                Geary.FolderPath trash_path = (yield current_account.get_required_special_folder_async(
+                    Geary.SpecialFolderType.TRASH, cancellable)).path;
+                Geary.FolderSupport.Move? supports_move = current_folder as Geary.FolderSupport.Move;
+                if (supports_move != null) {
+                    yield supports_move.move_email_async(ids, trash_path, cancellable);
+                    return;
+                }
+            }
+            
+            debug("Folder %s doesn't support move or account %s doesn't have a trash folder",
+                current_folder.to_string(), current_account.to_string());
             return;
         }
         
         debug("Deleting selected messages");
         
         Geary.FolderSupport.Remove? supports_remove = current_folder as Geary.FolderSupport.Remove;
-        if (supports_remove == null)
+        if (supports_remove == null) {
             debug("Folder %s doesn't support remove", current_folder.to_string());
-        else
-            yield supports_remove.remove_email_async(ids, cancellable);
+        } else {
+            if (confirm_delete(ids.size))
+                yield supports_remove.remove_email_async(ids, cancellable);
+            else
+                last_deleted_conversation = null;
+        }
     }
     
     private void on_archive_or_delete_selection_finished(Object? source, AsyncResult result) {

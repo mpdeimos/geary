@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -31,6 +31,7 @@ public class MainWindow : Gtk.ApplicationWindow {
     private Geary.AggregateProgressMonitor progress_monitor = new Geary.AggregateProgressMonitor();
     private Geary.ProgressMonitor? conversation_monitor_progress = null;
     private Geary.Folder? current_folder = null;
+    private Geary.ProgressMonitor? folder_progress = null;
     
     public MainWindow(GearyApplication application) {
         Object(application: application);
@@ -39,7 +40,8 @@ public class MainWindow : Gtk.ApplicationWindow {
         
         conversation_list_view = new ConversationListView(conversation_list_store);
         
-        add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK);
+        add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK
+            | Gdk.EventMask.FOCUS_CHANGE_MASK);
         
         // This code both loads AND saves the pane positions with live
         // updating. This is more resilient against crashes because
@@ -64,6 +66,7 @@ public class MainWindow : Gtk.ApplicationWindow {
         delete_event.connect(on_delete_event);
         key_press_event.connect(on_key_press_event);
         key_release_event.connect(on_key_release_event);
+        focus_in_event.connect(on_focus_event);
         GearyApplication.instance.controller.notify[GearyController.PROP_CURRENT_CONVERSATION].
             connect(on_conversation_monitor_changed);
         GearyApplication.instance.controller.folder_selected.connect(on_folder_selected);
@@ -95,20 +98,32 @@ public class MainWindow : Gtk.ApplicationWindow {
         
         return true;
     }
-    
+
+    // Fired on window resize, window move and possibly other events
+    // We want to save the window size for the next start
     public override bool configure_event(Gdk.EventConfigure event) {
-        // Get window dimensions.
-        window_maximized = ((get_window().get_state() & Gdk.WindowState.MAXIMIZED) != 0);
-        if (!window_maximized) {
-            int width, height;
-            get_size(out width, out height);
-            
-            // can't use properties as out variables
-            window_width = width;
-            window_height = height;
-        }
-        
+
+        // Writing the window_* variables triggers a dconf database update.
+        // Only write if the value has changed.
+        if(window_width != event.width)
+            window_width = event.width;
+        if(window_height != event.height)
+            window_height = event.height;
+
         return base.configure_event(event);
+    }
+
+    // Fired on [un]maximize and possibly other events
+    // We want to save the maximized state for the next start
+    public override bool window_state_event(Gdk.EventWindowState event) {
+        bool maximized = ((event.new_window_state & Gdk.WindowState.MAXIMIZED) != 0);
+
+        // Writing the window_* variables triggers a dconf database update.
+        // Only write if the value has changed.
+        if(window_maximized != maximized)
+            window_maximized = maximized;
+
+        return base.window_state_event(event);
     }
     
     private void create_layout() {
@@ -189,6 +204,11 @@ public class MainWindow : Gtk.ApplicationWindow {
         return propagate_key_event(event);
     }
     
+    private bool on_focus_event() {
+        on_shift_key(false);
+        return false;
+    }
+    
     private void on_conversation_monitor_changed() {
         Geary.App.ConversationMonitor? conversation_monitor =
             GearyApplication.instance.controller.current_conversations;
@@ -225,6 +245,11 @@ public class MainWindow : Gtk.ApplicationWindow {
     }
     
     private void on_folder_selected(Geary.Folder? folder) {
+        if (folder_progress != null) {
+            progress_monitor.remove(folder_progress);
+            folder_progress = null;
+        }
+        
         // disconnect from old folder
         if (current_folder != null) {
             current_folder.properties.notify.disconnect(update_headerbar);
@@ -233,6 +258,9 @@ public class MainWindow : Gtk.ApplicationWindow {
         
         // connect to new folder
         if (folder != null) {
+            folder_progress = folder.opening_monitor;
+            progress_monitor.add(folder_progress);
+            
             folder.properties.notify.connect(update_headerbar);
             folder.display_name_changed.connect(update_headerbar);
         }

@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -208,6 +208,29 @@ private class Geary.ImapDB.Account : BaseObject {
             stmt.bind_int(7, properties.email_unread);
             
             stmt.exec(cancellable);
+            
+            return Db.TransactionOutcome.COMMIT;
+        }, cancellable);
+    }
+    
+    public async void delete_folder_async(Geary.Folder folder, Cancellable? cancellable)
+        throws Error {
+        check_open();
+        
+        Geary.FolderPath path = folder.path;
+        
+        yield db.exec_transaction_async(Db.TransactionType.RW, (cx) => {
+            int64 folder_id;
+            do_fetch_folder_id(cx, path, false, out folder_id, cancellable);
+            if (folder_id == Db.INVALID_ROWID)
+                return Db.TransactionOutcome.ROLLBACK;
+            
+            if (do_has_children(cx, folder_id, cancellable)) {
+                debug("Can't delete folder %s because it has children", folder.to_string());
+                return Db.TransactionOutcome.ROLLBACK;
+            }
+            
+            do_delete_folder(cx, folder_id, cancellable);
             
             return Db.TransactionOutcome.COMMIT;
         }, cancellable);
@@ -656,6 +679,11 @@ private class Geary.ImapDB.Account : BaseObject {
         /// messages received by a particular person.
         field_names.set(_("to"), "receivers");
         
+        // Fields we allow the token to be "me" as in from:me.
+        string[] addressable_fields = {
+            _("bcc"), _("cc"), _("from"), _("to"),
+        };
+        
         // If they stopped at "field:", treat it as if they hadn't typed the :
         if (Geary.String.is_empty_or_whitespace(parts[1])) {
             token = parts[0];
@@ -665,6 +693,12 @@ private class Geary.ImapDB.Account : BaseObject {
         string key = parts[0].down();
         if (key in field_names.keys) {
             token = parts[1];
+            if (key in addressable_fields) {
+                // "me" can be typed like from:me or cc:me, etc. as a shorthand
+                // to find mail to or from yourself in search.
+                if (token.down() == _("me"))
+                    token = account_information.email;
+            }
             return field_names.get(key);
         }
         
@@ -853,7 +887,7 @@ private class Geary.ImapDB.Account : BaseObject {
                 FROM MessageTable
                 INDEXED BY MessageTableInternalDateTimeTIndex
                 WHERE id IN (
-                    SELECT id
+                    SELECT docid
                     FROM MessageSearchTable
                     WHERE 1=1
             """);
@@ -924,7 +958,7 @@ private class Geary.ImapDB.Account : BaseObject {
             sql.append("""
                 SELECT offsets(MessageSearchTable), *
                 FROM MessageSearchTable
-                WHERE id IN (
+                WHERE docid IN (
             """);
             sql_append_ids(sql,
                 Geary.traverse<ImapDB.EmailIdentifier>(ids).map<int64?>(id => id.message_id).to_gee_iterable());
@@ -1092,7 +1126,7 @@ private class Geary.ImapDB.Account : BaseObject {
                 SELECT id
                 FROM MessageTable
                 WHERE id NOT IN (
-                    SELECT id
+                    SELECT docid
                     FROM MessageSearchTable
                 )
                 LIMIT ?
@@ -1232,6 +1266,13 @@ private class Geary.ImapDB.Account : BaseObject {
         }
         
         return do_fetch_folder_id(cx, path.get_parent(), create, out parent_id, cancellable);
+    }
+    
+    private bool do_has_children(Db.Connection cx, int64 folder_id, Cancellable? cancellable) throws Error {
+        Db.Statement stmt = cx.prepare("SELECT 1 FROM FolderTable WHERE parent_id = ?");
+        stmt.bind_rowid(0, folder_id);
+        Db.Result result = stmt.exec(cancellable);
+        return !result.finished;
     }
     
     // Turn the collection of folder paths into actual folder ids.  As a

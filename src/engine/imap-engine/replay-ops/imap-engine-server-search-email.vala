@@ -1,4 +1,4 @@
-/* Copyright 2013 Yorba Foundation
+/* Copyright 2013-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -13,7 +13,7 @@
 private class Geary.ImapEngine.ServerSearchEmail : Geary.ImapEngine.AbstractListEmail {
     private Imap.SearchCriteria criteria;
     
-    public ServerSearchEmail(GenericFolder owner, Imap.SearchCriteria criteria, Geary.Email.Field required_fields,
+    public ServerSearchEmail(MinimalFolder owner, Imap.SearchCriteria criteria, Geary.Email.Field required_fields,
         Gee.List<Geary.Email>? accumulator, Cancellable? cancellable) {
         // OLDEST_TO_NEWEST used for vector expansion, if necessary
         base ("ServerSearchEmail", owner, required_fields, Geary.Folder.ListFlags.OLDEST_TO_NEWEST,

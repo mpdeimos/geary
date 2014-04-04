@@ -1,18 +1,18 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
 private class Geary.ImapEngine.MoveEmail : Geary.ImapEngine.SendReplayOperation {
-    private GenericFolder engine;
+    private MinimalFolder engine;
     private Gee.List<ImapDB.EmailIdentifier> to_move = new Gee.ArrayList<ImapDB.EmailIdentifier>();
     private Geary.FolderPath destination;
     private Cancellable? cancellable;
     private Gee.Set<ImapDB.EmailIdentifier>? moved_ids = null;
     private int original_count = 0;
 
-    public MoveEmail(GenericFolder engine, Gee.List<ImapDB.EmailIdentifier> to_move, 
+    public MoveEmail(MinimalFolder engine, Gee.List<ImapDB.EmailIdentifier> to_move, 
         Geary.FolderPath destination, Cancellable? cancellable = null) {
         base("MoveEmail");
 

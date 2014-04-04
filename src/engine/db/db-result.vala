@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -35,7 +35,10 @@ public class Geary.Db.Result : Geary.Db.Context {
         check_cancelled("Result.next", cancellable);
         
         if (!finished) {
+            Timer timer = new Timer();
             finished = throw_on_error("Result.next", statement.stmt.step(), statement.sql) != Sqlite.ROW;
+            if (timer.elapsed() > 1.0)
+                debug("\n\nDB QUERY STEP \"%s\"\nelapsed=%lf\n\n", statement.sql, timer.elapsed());
             
             log(finished ? "NO ROW" : "ROW");
         }

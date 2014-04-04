@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -25,8 +25,13 @@ public class Geary.AccountInformation : BaseObject {
     private const string SMTP_PORT = "smtp_port";
     private const string SMTP_SSL = "smtp_ssl";
     private const string SMTP_STARTTLS = "smtp_starttls";
+    private const string SMTP_USE_IMAP_CREDENTIALS = "smtp_use_imap_credentials";
     private const string SMTP_NOAUTH = "smtp_noauth";
     private const string SAVE_SENT_MAIL_KEY = "save_sent_mail";
+    private const string DRAFTS_FOLDER_KEY = "drafts_folder";
+    private const string SENT_MAIL_FOLDER_KEY = "sent_mail_folder";
+    private const string SPAM_FOLDER_KEY = "spam_folder";
+    private const string TRASH_FOLDER_KEY = "trash_folder";
     
     //
     // "Retired" keys
@@ -79,7 +84,13 @@ public class Geary.AccountInformation : BaseObject {
     public uint16 default_smtp_server_port  { get; set; }
     public bool default_smtp_server_ssl  { get; set; }
     public bool default_smtp_server_starttls { get; set; }
+    public bool default_smtp_use_imap_credentials { get; set; }
     public bool default_smtp_server_noauth { get; set; }
+    
+    public Geary.FolderPath? drafts_folder_path { get; set; default = null; }
+    public Geary.FolderPath? sent_mail_folder_path { get; set; default = null; }
+    public Geary.FolderPath? spam_folder_path { get; set; default = null; }
+    public Geary.FolderPath? trash_folder_path { get; set; default = null; }
 
     public Geary.Credentials imap_credentials { get; set; default = new Geary.Credentials(null, null); }
     public bool imap_remember_password { get; set; default = true; }
@@ -135,13 +146,25 @@ public class Geary.AccountInformation : BaseObject {
                     Geary.Smtp.ClientConnection.DEFAULT_PORT_SSL);
                 default_smtp_server_ssl = get_bool_value(key_file, GROUP, SMTP_SSL, true);
                 default_smtp_server_starttls = get_bool_value(key_file, GROUP, SMTP_STARTTLS, false);
+                default_smtp_use_imap_credentials = get_bool_value(key_file, GROUP, SMTP_USE_IMAP_CREDENTIALS, false);
                 default_smtp_server_noauth = get_bool_value(key_file, GROUP, SMTP_NOAUTH, false);
                 
                 if (default_smtp_server_noauth) {
-                    // Make sure the SMTP credentials are unset.
                     smtp_credentials = null;
+                } else if (default_smtp_use_imap_credentials) {
+                    smtp_credentials.user = imap_credentials.user;
+                    smtp_credentials.pass = imap_credentials.pass;
                 }
             }
+            
+            drafts_folder_path = build_folder_path(get_string_list_value(
+                key_file, GROUP, DRAFTS_FOLDER_KEY));
+            sent_mail_folder_path = build_folder_path(get_string_list_value(
+                key_file, GROUP, SENT_MAIL_FOLDER_KEY));
+            spam_folder_path = build_folder_path(get_string_list_value(
+                key_file, GROUP, SPAM_FOLDER_KEY));
+            trash_folder_path = build_folder_path(get_string_list_value(
+                key_file, GROUP, TRASH_FOLDER_KEY));
         }
     }
     
@@ -162,11 +185,16 @@ public class Geary.AccountInformation : BaseObject {
         default_smtp_server_port = from.default_smtp_server_port;
         default_smtp_server_ssl = from.default_smtp_server_ssl;
         default_smtp_server_starttls = from.default_smtp_server_starttls;
+        default_smtp_use_imap_credentials = from.default_smtp_use_imap_credentials;
         default_smtp_server_noauth = from.default_smtp_server_noauth;
         imap_credentials = from.imap_credentials;
         imap_remember_password = from.imap_remember_password;
         smtp_credentials = from.smtp_credentials;
         smtp_remember_password = from.smtp_remember_password;
+        drafts_folder_path = from.drafts_folder_path;
+        sent_mail_folder_path = from.sent_mail_folder_path;
+        spam_folder_path = from.spam_folder_path;
+        trash_folder_path = from.trash_folder_path;
     }
     
     /**
@@ -178,6 +206,61 @@ public class Geary.AccountInformation : BaseObject {
         // We should never push mail to Gmail, since its servers automatically
         // push sent mail to the sent mail folder.
         return service_provider != ServiceProvider.GMAIL;
+    }
+    
+    /**
+     * Gets the path used when Geary has found or created a special folder for
+     * this account.  This will be null if Geary has always been told about the
+     * special folders by the server, and hasn't had to go looking for them.
+     * Only the DRAFTS, SENT, SPAM, and TRASH special folder types are valid to
+     * pass to this function.
+     */
+    public Geary.FolderPath? get_special_folder_path(Geary.SpecialFolderType special) {
+        switch (special) {
+            case Geary.SpecialFolderType.DRAFTS:
+                return drafts_folder_path;
+            
+            case Geary.SpecialFolderType.SENT:
+                return sent_mail_folder_path;
+            
+            case Geary.SpecialFolderType.SPAM:
+                return spam_folder_path;
+            
+            case Geary.SpecialFolderType.TRASH:
+                return trash_folder_path;
+            
+            default:
+                assert_not_reached();
+        }
+    }
+    
+    /**
+     * Sets the path Geary will look for or create a special folder.  This is
+     * only obeyed if the server doesn't tell Geary which folders are special.
+     * Only the DRAFTS, SENT, SPAM, and TRASH special folder types are valid to
+     * pass to this function.
+     */
+    public void set_special_folder_path(Geary.SpecialFolderType special, Geary.FolderPath? path) {
+        switch (special) {
+            case Geary.SpecialFolderType.DRAFTS:
+                drafts_folder_path = path;
+            break;
+            
+            case Geary.SpecialFolderType.SENT:
+                sent_mail_folder_path = path;
+            break;
+            
+            case Geary.SpecialFolderType.SPAM:
+                spam_folder_path = path;
+            break;
+            
+            case Geary.SpecialFolderType.TRASH:
+                trash_folder_path = path;
+            break;
+            
+            default:
+                assert_not_reached();
+        }
     }
     
     /**
@@ -406,6 +489,16 @@ public class Geary.AccountInformation : BaseObject {
         }
     }
     
+    private Geary.FolderPath? build_folder_path(Gee.List<string>? parts) {
+        if (parts == null || parts.size == 0)
+            return null;
+        
+        Geary.FolderPath path = new Imap.FolderRoot(parts[0], null);
+        for (int i = 1; i < parts.size; i++)
+            path = path.get_child(parts.get(i));
+        return path;
+    }
+    
     private string get_string_value(KeyFile key_file, string group, string key, string def = "") {
         try {
             return key_file.get_value(group, key);
@@ -414,6 +507,18 @@ public class Geary.AccountInformation : BaseObject {
         }
         
         return def;
+    }
+    
+    private Gee.List<string> get_string_list_value(KeyFile key_file, string group, string key) {
+        try {
+            string[] list = key_file.get_string_list(group, key);
+            if (list.length > 0)
+                return Geary.Collection.array_list_wrap<string>(list);
+        } catch(KeyFileError err) {
+            // Ignore.
+        }
+        
+        return new Gee.ArrayList<string>();
     }
     
     private bool get_bool_value(KeyFile key_file, string group, string key, bool def = false) {
@@ -487,8 +592,18 @@ public class Geary.AccountInformation : BaseObject {
             key_file.set_integer(GROUP, SMTP_PORT, default_smtp_server_port);
             key_file.set_boolean(GROUP, SMTP_SSL, default_smtp_server_ssl);
             key_file.set_boolean(GROUP, SMTP_STARTTLS, default_smtp_server_starttls);
+            key_file.set_boolean(GROUP, SMTP_USE_IMAP_CREDENTIALS, default_smtp_use_imap_credentials);
             key_file.set_boolean(GROUP, SMTP_NOAUTH, default_smtp_server_noauth);
         }
+        
+        key_file.set_string_list(GROUP, DRAFTS_FOLDER_KEY, (drafts_folder_path != null
+            ? drafts_folder_path.as_list().to_array() : new string[] {}));
+        key_file.set_string_list(GROUP, SENT_MAIL_FOLDER_KEY, (sent_mail_folder_path != null
+            ? sent_mail_folder_path.as_list().to_array() : new string[] {}));
+        key_file.set_string_list(GROUP, SPAM_FOLDER_KEY, (spam_folder_path != null
+            ? spam_folder_path.as_list().to_array() : new string[] {}));
+        key_file.set_string_list(GROUP, TRASH_FOLDER_KEY, (trash_folder_path != null
+            ? trash_folder_path.as_list().to_array() : new string[] {}));
         
         string data = key_file.to_data();
         string new_etag;

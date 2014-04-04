@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -144,6 +144,8 @@ public interface Geary.Folder : BaseObject {
     public abstract Geary.FolderPath path { get; }
     
     public abstract Geary.SpecialFolderType special_folder_type { get; }
+    
+    public abstract Geary.ProgressMonitor opening_monitor { get; protected set; }
     
     /**
      * Fired when the folder is successfully opened by a caller.

@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -20,6 +20,11 @@ public class Geary.Imap.MailboxAttribute : Geary.Imap.Flag {
             _no_inferiors = new MailboxAttribute("\\noinferiors");
         
         return _no_inferiors;
+    } }
+    
+    private static MailboxAttribute? _nonexistent = null;
+    public static MailboxAttribute NONEXISTENT { get {
+        return (_nonexistent != null) ? _nonexistent : _nonexistent = new MailboxAttribute("\\NonExistent");
     } }
     
     private static MailboxAttribute? _no_select = null;
@@ -165,6 +170,7 @@ public class Geary.Imap.MailboxAttribute : Geary.Imap.Flag {
     // Call these at init time to prevent thread issues
     internal static void init() {
         MailboxAttribute to_init = NO_INFERIORS;
+        to_init = NONEXISTENT;
         to_init = NO_SELECT;
         to_init = MARKED;
         to_init = UNMARKED;

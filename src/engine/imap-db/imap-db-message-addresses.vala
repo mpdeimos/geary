@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -126,6 +126,9 @@ private class Geary.ImapDB.MessageAddresses : BaseObject {
     
     private void add_contact(Gee.Map<string, Contact> contacts_map, RFC822.MailboxAddress address,
         int importance) {
+        if (!address.is_valid())
+            return;
+        
         Contact contact = new Contact.from_rfc822_address(address, importance);
         Contact? old_contact = contacts_map[contact.normalized_email];
         if (old_contact == null || old_contact.highest_importance < contact.highest_importance)

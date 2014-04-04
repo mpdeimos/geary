@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -44,8 +44,8 @@ public class FolderList.SearchEntry : FolderList.AbstractFolderEntry {
         return ngettext("%d result", "%d results", total).printf(total);
     }
     
-    public override Icon? get_sidebar_icon() {
-        return new ThemedIcon("edit-find-symbolic");
+    public override string? get_sidebar_icon() {
+        return "edit-find-symbolic";
     }
     
     public override string to_string() {

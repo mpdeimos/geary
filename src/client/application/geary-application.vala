@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -16,10 +16,10 @@ public class GearyApplication : Gtk.Application {
     public const string PRGNAME = "geary";
     public const string APP_ID = "org.yorba.geary";
     public const string DESCRIPTION = _("Mail Client");
-    public const string COPYRIGHT = _("Copyright 2011-2013 Yorba Foundation");
+    public const string COPYRIGHT = _("Copyright 2011-2014 Yorba Foundation");
     public const string WEBSITE = "http://www.yorba.org";
     public const string WEBSITE_LABEL = _("Visit the Yorba web site");
-    public const string BUGREPORT = "http://redmine.yorba.org/projects/geary/issues";
+    public const string BUGREPORT = "https://wiki.gnome.org/Apps/Geary/ReportingABug";
     public const string DONATE = "http://www.yorba.org/about/donate";
     
     public const string VERSION = _VERSION;

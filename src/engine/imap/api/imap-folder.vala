@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -94,6 +94,8 @@ private class Geary.Imap.Folder : BaseObject {
         session.search.connect(on_search);
         session.status_response_received.connect(on_status_response);
         session.disconnected.connect(on_disconnected);
+        
+        properties.set_from_session_capabilities(session.capabilities);
         
         StatusResponse response = yield session.select_async(
             new MailboxSpecifier.from_folder_path(path, info.delim), cancellable);

@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -17,17 +17,19 @@ public class FolderList.AccountBranch : Sidebar.Branch {
         bool rtl = Gtk.Widget.get_default_direction() == Gtk.TextDirection.RTL;
         
         this.account = account;
-        user_folder_group = new SpecialGrouping(2, "",
-            IconFactory.instance.get_custom_icon(rtl ? "tag-rtl-symbolic" : "tag-symbolic", IconFactory.ICON_SIDEBAR));
+        user_folder_group = new SpecialGrouping(2, "", rtl ? "tag-rtl-symbolic" : "tag-symbolic");
         folder_entries = new Gee.HashMap<Geary.FolderPath, FolderEntry>();
         
         account.information.notify["nickname"].connect(on_nicknamed_changed);
         
         graft(get_root(), user_folder_group);
+        
+        entry_removed.connect(on_entry_removed);
     }
     
     ~AccountBranch() {
         account.information.notify["nickname"].disconnect(on_nicknamed_changed);
+        entry_removed.disconnect(on_entry_removed);
     }
     
     private void on_nicknamed_changed() {
@@ -123,5 +125,11 @@ public class FolderList.AccountBranch : Sidebar.Branch {
         
         prune(entry);
         folder_entries.unset(folder.path);
+    }
+    
+    private void on_entry_removed(Sidebar.Entry entry) {
+        FolderEntry? folder_entry = entry as FolderEntry;
+        if (folder_entry != null && folder_entries.has_key(folder_entry.folder.path))
+            folder_entries.unset(folder_entry.folder.path);
     }
 }

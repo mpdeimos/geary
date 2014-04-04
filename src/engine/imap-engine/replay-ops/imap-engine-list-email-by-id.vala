@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -10,7 +10,7 @@ private class Geary.ImapEngine.ListEmailByID : Geary.ImapEngine.AbstractListEmai
     private int fulfilled_count = 0;
     private Imap.UID? initial_uid = null;
     
-    public ListEmailByID(GenericFolder owner, ImapDB.EmailIdentifier? initial_id, int count,
+    public ListEmailByID(MinimalFolder owner, ImapDB.EmailIdentifier? initial_id, int count,
         Geary.Email.Field required_fields, Folder.ListFlags flags, Gee.List<Geary.Email>? accumulator,
         EmailCallback? cb, Cancellable? cancellable) {
         base ("ListEmailByID", owner, required_fields, flags, accumulator, cb, cancellable);

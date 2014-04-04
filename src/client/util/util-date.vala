@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -167,7 +167,8 @@ private string pretty_print_coarse(CoarseDate coarse_date, ClockFormat clock_for
             return ngettext("%dm ago", "%dm ago", (ulong) (diff / TimeSpan.MINUTE)).printf(diff / TimeSpan.MINUTE);
         
         case CoarseDate.HOURS:
-            return ngettext("%dh ago", "%dh ago", (ulong) (diff / TimeSpan.HOUR)).printf(diff / TimeSpan.HOUR);
+            int rounded = (int) Math.round((double) diff / TimeSpan.HOUR);
+            return ngettext("%dh ago", "%dh ago", (ulong) rounded).printf(rounded);
         
         case CoarseDate.TODAY:
             fmt = xlat_pretty_dates[clock_format.to_index()];

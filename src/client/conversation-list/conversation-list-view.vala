@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -118,6 +118,12 @@ public class ConversationListView : Gtk.TreeView {
     private void on_conversations_added_finished() {
         if (!reset_adjustment)
             return;
+        
+        // Pump the loop to make sure the new conversations are taking up space
+        // in the window.  Without this, setting the adjustment here is a no-op
+        // because as far as it's concerned, it's already at the top.
+        while (Gtk.events_pending())
+            Gtk.main_iteration();
         
         Gtk.Adjustment? adjustment = get_adjustment();
         if (adjustment == null)

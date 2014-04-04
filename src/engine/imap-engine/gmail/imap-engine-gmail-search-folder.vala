@@ -1,4 +1,4 @@
-/* Copyright 2013 Yorba Foundation
+/* Copyright 2013-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -21,7 +21,7 @@ public class Geary.ImapEngine.GmailSearchFolder : Geary.SearchFolder {
         Cancellable? cancellable = null) throws Error {
         Geary.Folder? trash_folder = null;
         try {
-            trash_folder = account.get_special_folder(Geary.SpecialFolderType.TRASH);
+            trash_folder = yield account.get_required_special_folder_async(Geary.SpecialFolderType.TRASH, cancellable);
         } catch (Error e) {
             debug("Error looking up trash folder in %s: %s", account.to_string(), e.message);
         }

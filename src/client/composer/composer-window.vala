@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -82,11 +82,6 @@ public class ComposerWindow : Gtk.Window {
         }
         </style>
         </head><body id="message-body"></body></html>""";
-    
-    private const string draft_save_label_style = """
-        .draft-save-label {
-            color: shade (@bg_color, 0.6);
-        }""";
     
     private const int DRAFT_TIMEOUT_MSEC = 2000; // 2 seconds
     
@@ -226,8 +221,6 @@ public class ComposerWindow : Gtk.Window {
         visible_on_attachment_drag_over_child = (Gtk.Widget) builder.get_object("visible_on_attachment_drag_over_child");
         visible_on_attachment_drag_over.remove(visible_on_attachment_drag_over_child);
         
-        // TODO: It would be nicer to set the completions inside the EmailEntry constructor. But in
-        // testing, this can cause non-deterministic segfaults. Investigate why, and fix if possible.
         from_label = (Gtk.Label) builder.get_object("from label");
         from_single = (Gtk.Label) builder.get_object("from_single");
         from_multiple = (Gtk.ComboBoxText) builder.get_object("from_multiple");
@@ -237,11 +230,21 @@ public class ComposerWindow : Gtk.Window {
         (builder.get_object("cc") as Gtk.EventBox).add(cc_entry);
         bcc_entry = new EmailEntry();
         (builder.get_object("bcc") as Gtk.EventBox).add(bcc_entry);
+        
+        Gtk.Label to_label = (Gtk.Label) builder.get_object("to label");
+        Gtk.Label cc_label = (Gtk.Label) builder.get_object("cc label");
+        Gtk.Label bcc_label = (Gtk.Label) builder.get_object("bcc label");
+        to_label.set_mnemonic_widget(to_entry);
+        cc_label.set_mnemonic_widget(cc_entry);
+        bcc_label.set_mnemonic_widget(bcc_entry);
+        
+        // TODO: It would be nicer to set the completions inside the EmailEntry constructor. But in
+        // testing, this can cause non-deterministic segfaults. Investigate why, and fix if possible.
         set_entry_completions();
         subject_entry = builder.get_object("subject") as Gtk.Entry;
         Gtk.Alignment message_area = builder.get_object("message area") as Gtk.Alignment;
         draft_save_label = (Gtk.Label) builder.get_object("draft_save_label");
-        GtkUtil.apply_style(draft_save_label, draft_save_label_style);
+        draft_save_label.get_style_context().add_class("dim-label");
         actions = builder.get_object("compose actions") as Gtk.ActionGroup;
         // Can only happen after actions exits
         compose_as_html = GearyApplication.instance.config.compose_as_html;
@@ -343,13 +346,8 @@ public class ComposerWindow : Gtk.Window {
                         debug("Error getting message body: %s", error.message);
                     }
                     
-                    try {
-                        Geary.Folder? draft_folder = account.get_special_folder(Geary.SpecialFolderType.DRAFTS);
-                        if (draft_folder != null && is_referred_draft)
-                            draft_id = referred.id;
-                    } catch (Error e) {
-                        debug("Error looking up special folder: %s", e.message);
-                    }
+                    if (is_referred_draft)
+                        draft_id = referred.id;
                     
                     add_attachments(referred.attachments);
                 break;
@@ -461,7 +459,7 @@ public class ComposerWindow : Gtk.Window {
         // If there's only one account, open the drafts folder.  If there's more than one account,
         // the drafts folder will be opened by on_from_changed().
         if (!from_multiple.visible)
-            open_drafts_folder.begin(cancellable_drafts);
+            open_drafts_folder_async.begin(cancellable_drafts);
     }
     
     public ComposerWindow.from_mailto(Geary.Account account, string mailto) {
@@ -503,9 +501,9 @@ public class ComposerWindow : Gtk.Window {
                     Geary.Collection.get_first(headers.get("body"))));
             
             foreach (string attachment in headers.get("attach"))
-                add_attachment(File.new_for_uri(attachment));
+                add_attachment(File.new_for_path(attachment));
             foreach (string attachment in headers.get("attachment"))
-                add_attachment(File.new_for_uri(attachment));
+                add_attachment(File.new_for_path(attachment));
         }
     }
     
@@ -669,28 +667,39 @@ public class ComposerWindow : Gtk.Window {
         update_from_field();
     }
     
+    private bool can_save() {
+        return (drafts_folder != null && drafts_folder.get_open_state() == Geary.Folder.OpenState.BOTH
+            && !drafts_folder.properties.create_never_returns_id && editor.can_undo());
+    }
+
     public bool should_close() {
-        if (!editor.can_undo())
-            return true;
+        bool try_to_save = can_save();
         
         present();
         AlertDialog dialog;
         
-        if (drafts_folder == null) {
+        if (drafts_folder == null && try_to_save) {
             dialog = new ConfirmationDialog(this,
                 _("Do you want to discard the unsaved message?"), null, Stock._DISCARD);
-        } else {
+        } else if (try_to_save) {
             dialog = new TernaryConfirmationDialog(this,
                 _("Do you want to discard this message?"), null, Stock._KEEP, Stock._DISCARD,
                 Gtk.ResponseType.CLOSE);
+        } else {
+            dialog = new ConfirmationDialog(this,
+                _("Do you want to discard this message?"), null, Stock._DISCARD);
         }
         
         Gtk.ResponseType response = dialog.run();
         if (response == Gtk.ResponseType.CANCEL || response == Gtk.ResponseType.DELETE_EVENT) {
             return false; // Cancel
         } else if (response == Gtk.ResponseType.OK) {
-            save_and_exit.begin(); // Save
-            return false;
+            if (try_to_save) {
+                save_and_exit.begin(); // Save
+                return false;
+            } else {
+                return true;
+            }
         } else {
             delete_and_exit.begin(); // Discard
             return false;
@@ -800,26 +809,34 @@ public class ComposerWindow : Gtk.Window {
         destroy(); // Only close window after draft is deleted; this closes the drafts folder.
     }
     
+    private void on_drafts_opened(Geary.Folder.OpenState open_state, int count) {
+        if (open_state == Geary.Folder.OpenState.BOTH)
+            reset_draft_timer();
+    }
+    
     // Returns the drafts folder for the current From account.
-    private async void open_drafts_folder(Cancellable cancellable) throws Error {
-        yield close_drafts_folder(cancellable);
+    private async void open_drafts_folder_async(Cancellable cancellable) throws Error {
+        yield close_drafts_folder_async(cancellable);
         
-        Geary.FolderSupport.Create? folder = account.get_special_folder(Geary.SpecialFolderType.DRAFTS) 
-            as Geary.FolderSupport.Create;
+        Geary.FolderSupport.Create? folder = (yield account.get_required_special_folder_async(
+            Geary.SpecialFolderType.DRAFTS, cancellable)) as Geary.FolderSupport.Create;
         
         if (folder == null)
             return; // No drafts folder.
         
-        yield folder.open_async(Geary.Folder.OpenFlags.FAST_OPEN, cancellable);
+        yield folder.open_async(Geary.Folder.OpenFlags.FAST_OPEN | Geary.Folder.OpenFlags.NO_DELAY,
+            cancellable);
         
         drafts_folder = folder;
+        drafts_folder.opened.connect(on_drafts_opened);
     }
     
-    private async void close_drafts_folder(Cancellable? cancellable = null) throws Error {
+    private async void close_drafts_folder_async(Cancellable? cancellable = null) throws Error {
         if (drafts_folder == null)
             return;
         
         // Close existing folder.
+        drafts_folder.opened.disconnect(on_drafts_opened);
         yield drafts_folder.close_async(cancellable);
         drafts_folder = null;
     }
@@ -837,7 +854,7 @@ public class ComposerWindow : Gtk.Window {
     }
     
     private async void save_async(Cancellable? cancellable) {
-        if (drafts_folder == null)
+        if (drafts_folder == null || !can_save())
             return;
         
         draft_save_label.label = DRAFT_SAVING_TEXT;
@@ -1435,16 +1452,18 @@ public class ComposerWindow : Gtk.Window {
         GLib.List<weak Gtk.Widget> children = context_menu.get_children();
         foreach (weak Gtk.Widget child in children) {
             Gtk.MenuItem item = (Gtk.MenuItem) child;
-            WebKit.ContextMenuAction action = WebKit.context_menu_item_get_action(item);
-            if (action == WebKit.ContextMenuAction.SPELLING_GUESS) {
-                suggestions = true;
-                continue;
+            if (item.is_sensitive()) {
+                WebKit.ContextMenuAction action = WebKit.context_menu_item_get_action(item);
+                if (action == WebKit.ContextMenuAction.SPELLING_GUESS) {
+                    suggestions = true;
+                    continue;
+                }
+                
+                if (action == WebKit.ContextMenuAction.IGNORE_SPELLING)
+                    ignore_spelling = item;
+                else if (action == WebKit.ContextMenuAction.LEARN_SPELLING)
+                    learn_spelling = item;
             }
-            
-            if (action == WebKit.ContextMenuAction.IGNORE_SPELLING)
-                ignore_spelling = item;
-            else if (action == WebKit.ContextMenuAction.LEARN_SPELLING)
-                learn_spelling = item;
             context_menu.remove(child);
         }
         
@@ -1555,6 +1574,9 @@ public class ComposerWindow : Gtk.Window {
     
     // Resets the draft save timeout.
     private void reset_draft_timer() {
+        if (!can_save())
+            return;
+        
         draft_save_label.label = "";
         if (draft_save_timeout_id != 0)
             Source.remove(draft_save_timeout_id);
@@ -1650,6 +1672,12 @@ public class ComposerWindow : Gtk.Window {
         
         if (compose_type == ComposeType.NEW_MESSAGE) {
             // For new messages, show the account combo-box.
+            from_label.set_use_underline(true);
+            from_label.set_mnemonic_widget(from_multiple);
+            // Composer label (with mnemonic underscore) for the account selector
+            // when choosing what address to send a message from.
+            from_label.set_text_with_mnemonic(_("_From:"));
+            
             from_multiple.visible = true;
             from_multiple.remove_all();
             foreach (Geary.AccountInformation a in accounts.values)
@@ -1661,6 +1689,11 @@ public class ComposerWindow : Gtk.Window {
                 from_multiple.set_active(0);
         } else {
             // For other types of messages, just show the from account.
+            from_label.set_use_underline(false);
+            // Composer label (without mnemonic underscore) for the account selector
+            // when choosing what address to send a message from.
+            from_label.set_text(_("From:"));
+            
             from_single.label = account.information.get_mailbox_address().get_full_address();
             from_single.visible = true;
         }
@@ -1683,7 +1716,7 @@ public class ComposerWindow : Gtk.Window {
                     from = new_account_info.get_from().to_rfc822_string();
                     set_entry_completions();
                     
-                    open_drafts_folder.begin(cancellable_drafts);
+                    open_drafts_folder_async.begin(cancellable_drafts);
                 }
             } catch (Error e) {
                 debug("Error updating account in Composer: %s", e.message);
@@ -1705,7 +1738,7 @@ public class ComposerWindow : Gtk.Window {
     }
     
     public override void destroy() {
-        close_drafts_folder.begin();
+        close_drafts_folder_async.begin();
     }
 }
 

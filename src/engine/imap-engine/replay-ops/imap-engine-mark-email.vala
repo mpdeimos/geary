@@ -1,18 +1,18 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
  */
 
 private class Geary.ImapEngine.MarkEmail : Geary.ImapEngine.SendReplayOperation {
-    private GenericFolder engine;
+    private MinimalFolder engine;
     private Gee.List<Geary.EmailIdentifier> to_mark = new Gee.ArrayList<Geary.EmailIdentifier>();
     private Geary.EmailFlags? flags_to_add;
     private Geary.EmailFlags? flags_to_remove;
     private Gee.Map<ImapDB.EmailIdentifier, Geary.EmailFlags>? original_flags = null;
     private Cancellable? cancellable;
     
-    public MarkEmail(GenericFolder engine, Gee.List<Geary.EmailIdentifier> to_mark, 
+    public MarkEmail(MinimalFolder engine, Gee.List<Geary.EmailIdentifier> to_mark, 
         Geary.EmailFlags? flags_to_add, Geary.EmailFlags? flags_to_remove, 
         Cancellable? cancellable = null) {
         base("MarkEmail");

@@ -1,4 +1,4 @@
-/* Copyright 2013 Yorba Foundation
+/* Copyright 2013-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -21,7 +21,7 @@ public time_t datetime_to_time_t(DateTime datetime) {
     // month is 1-based in DateTime
     tm.month = Numeric.int_floor(datetime.get_month() - 1, 0);
     // Time's year is number of years after 1900
-    tm.year = Numeric.int_floor(datetime.get_year() - 1900, 1900);
+    tm.year = Numeric.int_floor(datetime.get_year() - 1900, 0);
     tm.isdst = datetime.is_daylight_savings() ? 1 : 0;
     
     return tm.mktime();

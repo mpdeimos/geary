@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -49,7 +49,7 @@ private class Geary.ImapEngine.ReplayQueue : Geary.BaseObject {
         return remote_queue.size;
     } }
     
-    private weak GenericFolder owner;
+    private weak MinimalFolder owner;
     private Nonblocking.Mailbox<ReplayOperation> local_queue = new Nonblocking.Mailbox<ReplayOperation>();
     private Nonblocking.Mailbox<ReplayOperation> remote_queue = new Nonblocking.Mailbox<ReplayOperation>();
     private ReplayOperation? local_op_active = null;
@@ -124,7 +124,7 @@ private class Geary.ImapEngine.ReplayQueue : Geary.BaseObject {
      * each ReplayOperation waiting to perform a remote operation, cancelling it if the remote
      * folder is not ready.
      */
-    public ReplayQueue(GenericFolder owner) {
+    public ReplayQueue(MinimalFolder owner) {
         this.owner = owner;
         
         // fire off background queue processors
@@ -499,7 +499,7 @@ private class Geary.ImapEngine.ReplayQueue : Geary.BaseObject {
                     remote_err = replay_err;
                 }
             } else if (!is_close_op) {
-                remote_err = new EngineError.SERVER_UNAVAILABLE("Folder %s not available", to_string());
+                remote_err = new EngineError.SERVER_UNAVAILABLE("Folder %s not available", owner.to_string());
             }
             
             bool has_failed = !is_close_op && (status == ReplayOperation.Status.FAILED);

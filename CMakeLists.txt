@@ -1,5 +1,5 @@
 # Geary build script
-# Copyright 2011-2013 Yorba Foundation
+# Copyright 2011-2014 Yorba Foundation
 #
 # Check http://webdev.elementaryos.org/docs/developer-guide/cmake for documentation
 
@@ -15,7 +15,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake )
 #
 set(GETTEXT_PACKAGE "geary")
 set(RELEASE_NAME "Lightweight email client for GNOME.")
-set(VERSION "0.5.1")
+set(VERSION "0.6.0")
 set(VERSION_INFO "Release")
 set(LANGUAGE_SUPPORT_DIRECTORY ${CMAKE_INSTALL_PREFIX}/share/locale)
 
@@ -28,6 +28,7 @@ option(DEBUG "Build for debugging." OFF)
 option(ICON_UPDATE "Run gtk-update-icon-cache after the install." ON)
 option(DESKTOP_UPDATE "Run update-desktop-database after the install." ON)
 option(DESKTOP_VALIDATE "Check generated desktop file for errors during build." ON)
+option(TRANSLATE_HELP "Generate and install translated help documentation." ON)
 
 if (DEBUG)
     message(STATUS "Debug build")
@@ -43,6 +44,10 @@ endif ()
 
 if (DESKTOP_VALIDATE)
     message(STATUS "Generated desktop file will be checked for errors")
+endif ()
+
+if (TRANSLATE_HELP)
+    message(STATUS "Help translations will be generated and installed")
 endif ()
 
 find_package(PkgConfig)

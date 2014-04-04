@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -66,6 +66,13 @@ public class Geary.Imap.MessageSet : BaseObject {
     public MessageSet.uid_range(UID low, UID high) {
         assert(low.value > 0);
         assert(high.value > 0);
+        
+        // corrent ordering
+        if (low.value > high.value) {
+            UID swap = low;
+            low = high;
+            high = swap;
+        }
         
         if (low.equal_to(high))
             value = low.serialize();

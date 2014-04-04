@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -14,7 +14,7 @@ public class Geary.SearchFolderRoot : Geary.FolderRoot {
 
 public class Geary.SearchFolderProperties : Geary.FolderProperties {
     public SearchFolderProperties(int total, int unread) {
-        base(total, unread, Trillian.FALSE, Trillian.FALSE, Trillian.TRUE, true, true);
+        base(total, unread, Trillian.FALSE, Trillian.FALSE, Trillian.TRUE, true, true, false);
     }
     
     public void set_total(int total) {
@@ -66,6 +66,8 @@ public class Geary.SearchFolder : Geary.AbstractLocalFolder, Geary.FolderSupport
     public signal void search_query_changed(string? query);
     
     public SearchFolder(Account account) {
+        base();
+        
         _account = account;
         
         account.folders_available_unavailable.connect(on_folders_available_unavailable);

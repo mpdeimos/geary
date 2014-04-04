@@ -1,4 +1,4 @@
-/* Copyright 2012-2013 Yorba Foundation
+/* Copyright 2012-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -47,6 +47,10 @@ private class Geary.ImapDB.Database : Geary.Db.VersionedDatabase {
         // can't call the ProgressMonitor directly, as it's hooked up to signals that expect to be
         // called in the foreground thread, so use the Idle loop for this
         Idle.add(() => {
+            // don't use upgrade_monitor for new databases, as the upgrade should be near-
+            // instantaneous.  Also, there's some issue with GTK when starting the progress
+            // monitor while GtkDialog's are in play:
+            // https://bugzilla.gnome.org/show_bug.cgi?id=726269
             if (!new_db && !upgrade_monitor.is_in_progress)
                 upgrade_monitor.notify_start();
             
@@ -92,6 +96,14 @@ private class Geary.ImapDB.Database : Geary.Db.VersionedDatabase {
             
             case 15:
                 post_upgrade_fix_localized_internaldates();
+            break;
+            
+            case 18:
+                post_upgrade_populate_internal_date_time_t();
+            break;
+            
+            case 19:
+                post_upgrade_validate_contacts();
             break;
         }
     }
@@ -150,7 +162,6 @@ private class Geary.ImapDB.Database : Geary.Db.VersionedDatabase {
             // algorithm) is determined at runtime.
             exec("""
                 CREATE VIRTUAL TABLE MessageSearchTable USING fts4(
-                    id INTEGER PRIMARY KEY,
                     body,
                     attachment,
                     subject,
@@ -202,7 +213,7 @@ private class Geary.ImapDB.Database : Geary.Db.VersionedDatabase {
         return "english";
     }
     
-    // Version 12.
+    // Versions 12 and 18.
     private void post_upgrade_populate_internal_date_time_t() {
         try {
             exec_transaction(Db.TransactionType.RW, (cx) => {
@@ -363,6 +374,31 @@ private class Geary.ImapDB.Database : Geary.Db.VersionedDatabase {
         } catch (Error err) {
             debug("Error fixing INTERNALDATES during upgrade to schema 15 for %s: %s",
                 db_file.get_path(), err.message);
+        }
+    }
+    
+    // Version 19.
+    private void post_upgrade_validate_contacts() {
+        try {
+            exec_transaction(Db.TransactionType.RW, (cx) => {
+                Db.Result result = cx.query("SELECT id, email FROM ContactTable");
+                while (!result.finished) {
+                    string email = result.string_at(1);
+                    if (!RFC822.MailboxAddress.is_valid_address(email)) {
+                        int64 id = result.rowid_at(0);
+                        
+                        Db.Statement stmt = cx.prepare("DELETE FROM ContactTable WHERE id = ?");
+                        stmt.bind_rowid(0, id);
+                        stmt.exec();
+                    }
+                    
+                    result.next();
+                }
+                
+                return Db.TransactionOutcome.COMMIT;
+            });
+        } catch (Error e) {
+            debug("Error fixing up contacts table: %s", e.message);
         }
     }
     

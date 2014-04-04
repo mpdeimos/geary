@@ -1,4 +1,4 @@
-/* Copyright 2011-2013 Yorba Foundation
+/* Copyright 2011-2014 Yorba Foundation
  *
  * This software is licensed under the GNU Lesser General Public License
  * (version 2.1 or later).  See the COPYING file in this distribution.
@@ -246,8 +246,7 @@ public class Geary.Smtp.ClientConnection {
                 if (!starttls_response.code.is_starttls_ready())
                     throw new SmtpError.STARTTLS_FAILED("STARTTLS failed: %s", response.to_string());
                 
-                TlsClientConnection tls_cx = yield endpoint.starttls_handshake_async(cx,
-                    socket_cx.get_remote_address(), cancellable);
+                TlsClientConnection tls_cx = yield endpoint.starttls_handshake_async(cx, cancellable);
                 cx = tls_cx;
                 set_data_streams(tls_cx);
                 
