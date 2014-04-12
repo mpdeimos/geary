@@ -374,6 +374,8 @@ public class ComposerWindow : Gtk.Window {
             }
         }
         
+        add_signature();
+        
         editor = new WebKit.WebView();
         edit_fixer = new WebViewEditFixer(editor);
 
@@ -1404,6 +1406,35 @@ public class ComposerWindow : Gtk.Window {
     
     private string get_text() {
         return html_to_flowed_text(editor.get_dom_document());
+    }
+    
+    private void add_signature() {
+        File signature_file = File.new_for_path(Environment.get_home_dir()).get_child(".signature");
+        if (!signature_file.query_exists()) {
+            return;
+        }
+        
+        string signature = null;
+        try
+        {
+            FileUtils.get_contents(signature_file.get_path(), out signature);
+            if (Geary.String.is_empty_or_whitespace(signature)) {
+                return;
+            }
+        } catch (Error error) {
+            debug("Error reading signature file %s: %s", signature_file.get_path(), error.message);
+            return;
+        }
+        
+        signature = Geary.HTML.escape_markup(signature);
+        if (body_html == null)
+        {
+            body_html = Geary.HTML.preserve_whitespace("\n\n" + signature);
+        }
+        else
+        {
+            body_html = Geary.HTML.preserve_whitespace("\n\n" + signature) + body_html;
+        }
     }
     
     private bool on_navigation_policy_decision_requested(WebKit.WebFrame frame,
