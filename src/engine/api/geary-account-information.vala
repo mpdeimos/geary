@@ -681,6 +681,37 @@ public class Geary.AccountInformation : BaseObject {
         return new RFC822.MailboxAddresses.single(get_mailbox_address());
     }
     
+    /**
+     * Returns the signature for this account of null if no signature is defined.
+     */
+    public string? get_signature()
+    {
+        // try signature file in sttrings folder
+        File signature_file = settings_dir.get_child("signature");
+        if (!signature_file.query_exists()) {
+            // if not found try .signature file in home directory
+            signature_file = File.new_for_path(Environment.get_home_dir()).get_child(".signature");
+        }
+        if (!signature_file.query_exists()) {
+            return null;
+        }
+        
+        string signature = null;
+        try
+        {
+            FileUtils.get_contents(signature_file.get_path(), out signature);
+        } catch (Error error) {
+            debug("Error reading signature file %s: %s", signature_file.get_path(), error.message);
+            return null;
+        }
+        
+        if (Geary.String.is_empty_or_whitespace(signature)) {
+            return null;
+        }
+        
+        return signature;
+    }
+    
     public static int compare_ascending(AccountInformation a, AccountInformation b) {
         int diff = a.ordinal - b.ordinal;
         if (diff != 0)

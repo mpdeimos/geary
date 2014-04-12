@@ -1409,20 +1409,9 @@ public class ComposerWindow : Gtk.Window {
     }
     
     private void add_signature() {
-        File signature_file = File.new_for_path(Environment.get_home_dir()).get_child(".signature");
-        if (!signature_file.query_exists()) {
-            return;
-        }
-        
-        string signature = null;
-        try
+        string? signature = account.information.get_signature();
+        if (signature == null)
         {
-            FileUtils.get_contents(signature_file.get_path(), out signature);
-            if (Geary.String.is_empty_or_whitespace(signature)) {
-                return;
-            }
-        } catch (Error error) {
-            debug("Error reading signature file %s: %s", signature_file.get_path(), error.message);
             return;
         }
         
